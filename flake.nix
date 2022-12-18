@@ -24,9 +24,18 @@
           preFixup = ''
             addAutoPatchelfSearchPath "${self.nvidia-cublas-cu11}/${self.python.sitePackages}/nvidia/cublas/lib"
           '';
+          postFixup = ''
+            rm -r $out/${self.python.sitePackages}/nvidia/{__pycache__,__init__.py}
+          '';
           propagatedBuildInputs = attrs.propagatedBuildInputs or [ ] ++ [
             self.nvidia-cublas-cu11
           ];
+        });
+
+        nvidia-cuda-nvrtc-cu11 = super.nvidia-cuda-nvrtc-cu11.overridePythonAttrs (_: {
+          postFixup = ''
+            rm -r $out/${self.python.sitePackages}/nvidia/{__pycache__,__init__.py}
+          '';
         });
 
         torch = super.torch.overridePythonAttrs (attrs: {
