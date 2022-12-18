@@ -39,7 +39,10 @@
         });
 
         torch = super.torch.overridePythonAttrs (attrs: {
-          nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [ pkgs.autoPatchelfHook ];
+          nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [
+            pkgs.autoPatchelfHook
+            pkgs.cudaPackages.autoAddOpenGLRunpathHook
+          ];
           buildInputs = attrs.buildInputs or [ ] ++ [
             self.nvidia-cudnn-cu11
             self.nvidia-cuda-nvrtc-cu11
