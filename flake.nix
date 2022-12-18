@@ -3,41 +3,59 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
-  inputs.poetry2nix_pkgs.url = "github:nix-community/poetry2nix";
-
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    poetry2nix_pkgs,
-  }: (flake-utils.lib.eachDefaultSystem (system: let
-    pkgs = import nixpkgs {
-      inherit system;
-      config.allowUnfree = true;
+  inputs.poetry2nix = {
+    url = "github:cpcloud/poetry2nix/rollup";
+    inputs = {
+      nixpkgs.follows = "nixpkgs";
+      flake-utils.follows = "flake-utils";
     };
+  };
 
-    poetry2nix = import poetry2nix_pkgs {
-      inherit pkgs;
-      poetry = pkgs.poetry;
-    };
+  outputs = { self, nixpkgs, flake-utils, poetry2nix }: flake-utils.lib.eachDefaultSystem (system:
+    let
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ poetry2nix.overlay ];
+      };
 
-    customOverrides = self: super: {
-    };
+      customOverrides = self: super: {
+        nvidia-cudnn-cu11 = super.nvidia-cudnn-cu11.overridePythonAttrs (attrs: {
+          nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [ pkgs.autoPatchelfHook ];
+          preFixup = ''
+            addAutoPatchelfSearchPath "${self.nvidia-cublas-cu11}/${self.python.sitePackages}/nvidia/cublas/lib"
+          '';
+          propagatedBuildInputs = attrs.propagatedBuildInputs or [ ] ++ [
+            self.nvidia-cublas-cu11
+          ];
+        });
 
-    my_env =
-      poetry2nix.mkPoetryEnv
-      {
+        torch = super.torch.overridePythonAttrs (attrs: {
+          nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [ pkgs.autoPatchelfHook ];
+          buildInputs = attrs.buildInputs or [ ] ++ [
+            self.nvidia-cudnn-cu11
+            self.nvidia-cuda-nvrtc-cu11
+            self.nvidia-cuda-runtime-cu11
+          ];
+          # postInstall = ''
+          #   addAutoPatchelfSearchPath "${self.nvidia-cublas-cu11}/${self.python.sitePackages}/nvidia/cublas/lib"
+          #   addAutoPatchelfSearchPath "${self.nvidia-cudnn-cu11}/${self.python.sitePackages}/nvidia/cudnn/lib"
+          #   addAutoPatchelfSearchPath "${self.nvidia-cuda-nvrtc-cu11}/${self.python.sitePackages}/nvidia/cuda_nvrtc/lib"
+          # '';
+        });
+      };
+
+      env = pkgs.poetry2nix.mkPoetryEnv {
         projectDir = ./.;
         preferWheels = true;
-        overrides = [poetry2nix.defaultPoetryOverrides customOverrides];
+        overrides = pkgs.poetry2nix.overrides.withDefaults customOverrides;
         python = pkgs.python310;
       };
-  in {
-    devShell = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        poetry
-        my_env
-      ];
-    };
-  }));
+    in
+    {
+      devShells.default = pkgs.mkShell {
+        buildInputs = [ pkgs.poetry env ];
+      };
+      packages.env = env;
+    }
+  );
 }
