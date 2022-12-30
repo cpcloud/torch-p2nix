@@ -4,7 +4,7 @@
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
   inputs.poetry2nix = {
-    url = "github:cpcloud/poetry2nix/rollup";
+    url = "github:nix-community/poetry2nix";
     inputs = {
       nixpkgs.follows = "nixpkgs";
       flake-utils.follows = "flake-utils";
@@ -19,6 +19,8 @@
       };
 
       customOverrides = self: super: {
+        wheel = super.wheel.override { preferWheel = false; };
+
         nvidia-cudnn-cu11 = super.nvidia-cudnn-cu11.overridePythonAttrs (attrs: {
           nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [ pkgs.autoPatchelfHook ];
           preFixup = ''
@@ -59,7 +61,7 @@
       env = pkgs.poetry2nix.mkPoetryEnv {
         projectDir = ./.;
         preferWheels = true;
-        overrides = pkgs.poetry2nix.overrides.withDefaults customOverrides;
+        overrides = [ customOverrides pkgs.poetry2nix.defaultPoetryOverrides ];
         python = pkgs.python310;
       };
     in
