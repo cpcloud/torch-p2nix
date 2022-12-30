@@ -23,15 +23,17 @@
 
         nvidia-cudnn-cu11 = super.nvidia-cudnn-cu11.overridePythonAttrs (attrs: {
           nativeBuildInputs = attrs.nativeBuildInputs or [ ] ++ [ pkgs.autoPatchelfHook ];
+          propagatedBuildInputs = attrs.propagatedBuildInputs or [ ] ++ [
+            self.nvidia-cublas-cu11
+            self.pkgs.cudaPackages.cudnn_8_5_0
+          ];
+
           preFixup = ''
             addAutoPatchelfSearchPath "${self.nvidia-cublas-cu11}/${self.python.sitePackages}/nvidia/cublas/lib"
           '';
           postFixup = ''
             rm -r $out/${self.python.sitePackages}/nvidia/{__pycache__,__init__.py}
           '';
-          propagatedBuildInputs = attrs.propagatedBuildInputs or [ ] ++ [
-            self.nvidia-cublas-cu11
-          ];
         });
 
         nvidia-cuda-nvrtc-cu11 = super.nvidia-cuda-nvrtc-cu11.overridePythonAttrs (_: {
